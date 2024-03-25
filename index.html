@@ -388,7 +388,8 @@ R: {R = Xreal - Xo} | {R m to in}
         // Vine straight down
         drawLine(L, rectangleHeight, L, rectangleHeight - V, true);
 
-        drawCircle(L, rectangleHeight + V + tarzanRadius / 2, tarzanRadius);
+        // Not sure how the vine attaches to the balloon yet
+        drawCircle(L, rectangleHeight - V + tarzanRadius, tarzanRadius);
 
         // Cut point
         drawLine(Wx, 0, Wx, Wy);
