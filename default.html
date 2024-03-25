@@ -11,9 +11,6 @@
         max-height: 100vh;
         border: 1px solid black;
       }
-      .metric {
-        flex-grow: 2 !important;
-      }
     </style>
     <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css" />
   </head>
@@ -46,10 +43,15 @@
           <div class="form-group">
             <label for="R">R:</label>
             <div class="input-group">
-              <input type="number" class="form-control" id="R" value="45.7" />
-              <input type="number" class="form-control metric" id="R_m" value="1.16078" />
+              <input type="number" class="form-control" id="R" value="45.7" disabled />
+              <input type="number" class="form-control metric" id="R_m" value="1.16078" disabled />
+            </div>
+            <div class="custom-control custom-checkbox">
+              <input type="checkbox" class="custom-control-input" id="updateR" checked />
+              <label class="custom-control-label" for="updateR">Update R value automatically</label>
             </div>
           </div>
+          <p id="notices"></p>
         </div>
         <div class="col-xl-8 text-center">
           <canvas id="canvas"></canvas>
@@ -97,9 +99,17 @@
           </div>
         </div>
       </div>
-      <div class="form-group">
-        <label for="input">Input:</label>
-        <textarea rows="5" class="form-control" id="input" spellcheck="false">
+      <p id="info">
+        <span id="YfInfo">
+          <span id="YfRange"></span>
+          <span id="YfActual"></span>
+        </span>
+      </p>
+      <div class="row">
+        <div class="col">
+          <div class="form-group">
+            <label for="input">Input:</label>
+            <textarea rows="5" class="form-control" id="input" spellcheck="false">
 theta: {theta = atan((L - Wx) / (F - Wy))} rad | {theta rad to deg}
 Vprime: {Vprime = sqrt((F - Wy)^2 + (L - Wx)^2)} m | {Vprime m to in}
 deltaL: {deltaL = V - Vprime} | {deltaL m to in}
@@ -119,45 +129,69 @@ T: {T = Xo / Vox}
 
 Yf: {Yf = Yo + Voy * T - .5 * g * T^2} | {Yf m to in}
 
-Treal: {Treal = (Voy + sqrt(Voy^2 - 2 * g * (0.1524 - Yo))) / g}
+Container height:
+N: {N = 0.1524}
+
+Treal: {Treal = (Voy + sqrt(Voy^2 - 2 * g * (N - Yo))) / g}
 
 Xreal: {Xreal = Vox * Treal}
 
 R: {R = Xreal - Xo} | {R m to in}
 </textarea
-        >
-        <div class="row">
-          <div class="col-8">
-            <small>Place formulas in braces ({...}) for them to be evaluated</small>
-          </div>
-          <div class="col-4 text-right">
-            <small id="cursorPos"></small>
-          </div>
-        </div>
-      </div>
-      <div class="form-group">
-        <label for="output">Output:</label>
-        <textarea rows="5" class="form-control" id="output" readonly></textarea>
-      </div>
-      <div class="row p-3">
-        <div class="col">
-          <div class="row p-3" style="gap: 15px">
-            <div class="form-group">
-              <label for="gravity">Gravity:</label>
-              <input type="number" class="form-control" id="gravity" value="9.81" />
-            </div>
-            <div class="form-group">
-              <label for="openingSize">Opening Size:</label>
-              <input type="number" class="form-control" id="openingSize" value="6" />
-            </div>
-            <div class="form-group">
-              <label for="tarzanSize">Tarzan Size:</label>
-              <input type="number" class="form-control" id="tarzanSize" value="3" />
+            >
+            <div class="row">
+              <div class="col-8">
+                <small>Place formulas in braces ({...}) for them to be evaluated</small>
+              </div>
+              <div class="col-4 text-right">
+                <small id="cursorPos"></small>
+              </div>
             </div>
           </div>
         </div>
         <div class="col">
-          <div class="row p-3 justify-content-end">
+          <div class="form-group">
+            <label for="output">Output:</label>
+            <textarea rows="5" class="form-control" id="output" readonly></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="row py-3">
+        <div class="col">
+          <div class="row">
+            <div class="col">
+              <div class="form-group">
+                <label for="gravity">Gravity:</label>
+                <input type="number" class="form-control" id="gravity" value="9.81" />
+              </div>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="openingSize">Opening Size:</label>
+                <input type="number" class="form-control" id="openingSize" value="6" />
+              </div>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="tarzanSize">Tarzan Size:</label>
+                <input type="number" class="form-control" id="tarzanSize" value="3" />
+              </div>
+            </div>
+            <div class="col">
+              <div class="form-group">
+                <label for="roundDecimals">
+                  <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="roundResults" checked />
+                    <label class="custom-control-label" for="roundResults">Round results</label>
+                  </div>
+                </label>
+                <input type="number" class="form-control" id="roundDecimals" value="4" />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="row justify-content-end">
             <div class="form-group col">
               <label for="copyBtn">Share workspace:</label>
               <button class="btn btn-outline-secondary form-control" id="copyBtn" onclick="copyLink(this)">
@@ -186,18 +220,40 @@ R: {R = Xreal - Xo} | {R m to in}
       const X_OFFSET = 300;
       const Y_OFFSET = 25;
       const LABEL_OFFSET = 15;
+      const INCH_MULTIPLIER = 39.37;
 
       // Initialize parameters
       let scaleFactor, gravity, caveOpeningSize, tarzanRadius, rectangleWidth, rectangleHeight, L, V, H, R, Wx, Wy, C;
       let entryPointAngle, cutPointAngle;
 
-      function drawLine(x1, y1, x2, y2, dotted = false) {
+      function drawLine(x1, y1, x2, y2, dotted = false, color) {
         ctx.beginPath();
+        ctx.strokeStyle = color ?? "#000";
         ctx.setLineDash(dotted ? [5, 5] : []);
         ctx.moveTo(X_OFFSET + x1, canvas.height - Y_OFFSET - y1);
         ctx.lineTo(X_OFFSET + x2, canvas.height - Y_OFFSET - y2);
         ctx.stroke();
         ctx.setLineDash([]);
+        ctx.strokeStyle = "#000";
+      }
+
+      function drawCircle(x, y, radius, color) {
+        ctx.strokeStyle = color ?? "#000";
+        ctx.fillStyle = color ?? "#000";
+        ctx.beginPath();
+        ctx.arc(
+          X_OFFSET + x,
+          canvas.height - Y_OFFSET - y,
+          radius,
+          0,
+          math.pi * 2
+        );
+        if (color) {
+          ctx.fill();
+        }
+        ctx.stroke();
+        ctx.strokeStyle = "#000";
+        ctx.fillStyle = "#000";
       }
 
       function drawLineThroughPointWithLength(x1, y1, x2, y2, length, dotted = false) {
@@ -256,10 +312,51 @@ R: {R = Xreal - Xo} | {R m to in}
         });
       }
 
+      // Collects and displays notices
+      function displayNotices() {
+        let notices = [];
+
+        let angle = math.atan2(H - rectangleHeight, rectangleWidth - L);
+
+        // Calculate the end point coordinates based on length
+        let endX = L + V * math.cos(angle);
+        let endY = rectangleHeight + V * math.sin(angle);
+
+        let neg = 1;
+        if (endX < rectangleWidth) {
+          neg = -1;
+        }
+        let distanceFromRightWall = math.evaluate(
+          `sqrt((${endX} - ${rectangleWidth})^2 + (${endY} - ${H})^2) / ${scaleFactor}`
+        );
+
+        if (distanceFromRightWall > 0.1) {
+          notices.push(
+            "<span class='text-danger'>Your vine is <strong>" +
+              math.round(distanceFromRightWall * neg, 2) +
+              " inches</strong> away from the release point.</span>"
+          );
+        } else if (distanceFromRightWall > 0.01) {
+          notices.push(
+            "<span class='text-success'>Your vine is within a tenth of an inch from the release point at: <strong>" +
+              math.round(distanceFromRightWall * neg, 2) +
+              " inches</strong></span>"
+          );
+        } else {
+          notices.push(
+            "<span class='text-success font-italic'>Your vine length is less than 1 hundredth of an inch away from the release point!</span>"
+          );
+        }
+
+        $("#notices").html(notices.join("<br>"));
+      }
+
       // Function to draw diagram
       function drawDiagram() {
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        calcKnownValues();
 
         // Left side of rectangle
         // Part extending up to the opening
@@ -277,111 +374,30 @@ R: {R = Xreal - Xo} | {R m to in}
         drawLine(0, 0, rectangleWidth, 0);
 
         // Entry point
-        entryPointAngle = drawLineThroughPointWithLength(L, rectangleHeight, rectangleWidth, H, V, true);
-        
-        //ctx.textAlign = "center";
-        //ctx.textBaseline = "middle";
-        //ctx.fillText(math.round(entryPointAngle * 180 / math.pi, 2) + "°", X_OFFSET + L + LABEL_OFFSET * 3, canvas.height - Y_OFFSET - rectangleHeight + LABEL_OFFSET);
+        entryPointAngle = drawLineThroughPointWithLength(L, rectangleHeight, rectangleWidth, H, V);
 
         ctx.beginPath();
-        ctx.rect(X_OFFSET + rectangleWidth - tarzanRadius, canvas.height - Y_OFFSET - H - tarzanRadius, tarzanRadius * 2, tarzanRadius * 2);
+        ctx.rect(
+          X_OFFSET + rectangleWidth - tarzanRadius,
+          canvas.height - Y_OFFSET - H - tarzanRadius,
+          tarzanRadius * 2,
+          tarzanRadius * 2
+        );
         ctx.stroke();
-
-        if (angle == 0) {
-          angle = entryPointAngle;
-        }
 
         // Vine straight down
         drawLine(L, rectangleHeight, L, rectangleHeight - V, true);
 
-        ctx.beginPath();
-        ctx.arc(
-          X_OFFSET + L,
-          canvas.height - Y_OFFSET - rectangleHeight + V + tarzanRadius / 2,
-          tarzanRadius,
-          0,
-          math.pi * 2
-        );
-        ctx.stroke();
+        // Not sure how the vine attaches to the balloon yet
+        drawCircle(L, rectangleHeight - V + tarzanRadius, tarzanRadius);
 
         // Cut point
         drawLine(Wx, 0, Wx, Wy);
         cutPointAngle = drawLineThroughPointWithLength(L, rectangleHeight, Wx, Wy, V, true);
 
-        // if (math.abs(cutPointAngle) <= math.abs(angle)) {
-        //   ctx.beginPath();
-        //   ctx.arc(projectileX, projectileY, 5, 0, Math.PI * 2);
-        //   ctx.fillStyle = "red";
-        //   ctx.fill();
-        //   ctx.closePath();
-        //   ctx.fillStyle = "black";
-        // } else {
-        //   // Calculate the position of the pendulum bob
-        //   const bobX = L + V * math.cos(angle);
-        //   const bobY = rectangleHeight + V * math.sin(angle);
-
-        //   // Draw vine
-        //   drawLine(L, rectangleHeight, bobX, bobY);
-        // }
-
         drawLine(0, 0, -R, 0, true);
 
         drawLabels();
-      }
-
-      let angle = 0;
-      let angularVelocity = 0;
-      let deltaTime = 0.01;
-      let time = 0;
-      let pixelsPerMeter = 10;
-      let projectileX = 0;
-      let projectileY = 0;
-
-      function animateDiagram() {
-        if (math.abs(cutPointAngle) > math.abs(angle)) {
-          // Vine is swinging
-          // Calculate acceleration
-          const acceleration = (-1.24587 / V) * Math.cos(angle);
-
-          // Update angular velocity and angle
-          angularVelocity += acceleration;
-          angularVelocity *= 0.99;
-          angle += angularVelocity;
-        } else {
-          // Vine has been cut
-          // Continue projectile motion
-
-          const initialVelocityX = 3.6 * math.cos(-cutPointAngle);
-          const initialVelocityY = 3.6 * math.sin(-cutPointAngle);
-
-          // Update time
-          time += deltaTime;
-
-          // Calculate new position using projectile motion equations
-          projectileX = projectileX + initialVelocityX * deltaTime;
-          projectileY =
-            projectileY -
-            (initialVelocityY * deltaTime - 0.5 * 1.24587 * math.pow(time, 2));
-        }
-
-        // Draw the pendulum
-        drawDiagram();
-
-        //if (math.abs(acceleration) < 0.000001) return;
-
-        if (projectileY > canvas.height) {
-          // Reset the pendulum
-          projectileX = X_OFFSET + Wx;
-          projectileY = canvas.height - Y_OFFSET - Wy;
-          angularVelocity = 0;
-          angle = 0;
-          time = 0;
-
-          drawDiagram();
-        } else {
-          // Continue the animation
-          requestAnimationFrame(animateDiagram);
-        }
       }
 
       // Update parameters and redraw diagram
@@ -401,11 +417,9 @@ R: {R = Xreal - Xo} | {R m to in}
         Wy = parseFloat($("#Wy").val()) * scaleFactor;
         C = parseFloat($("#C").val()) * scaleFactor;
 
-        projectileX = X_OFFSET + Wx;
-        projectileY = canvas.height - Y_OFFSET - Wy;
-
         calcValues();
         drawDiagram();
+        displayNotices();
       }
 
       function fitToContainer(canvas) {
@@ -447,6 +461,103 @@ R: {R = Xreal - Xo} | {R m to in}
         $("#cursorPos").text(text);
       }
 
+      function evaluate(exp, vars) {
+        let result = vars ? math.evaluate(exp, vars) : math.evaluate(exp);
+
+        if (math.isUnit(result)) {
+          result = result.toNumber();
+        }
+
+        if (!math.isNumber(result) || !$("#roundResults").is(":checked")) {
+          return result;
+        }
+
+        return math.round(result, $("#roundDecimals").val());
+      }
+
+      function calcKnownValues() {
+        let variables = {
+          g: parseFloat($("#gravity").val()),
+
+          D: parseFloat($("#rectangleWidth_m").val()),
+          F: parseFloat($("#rectangleHeight_m").val()),
+
+          L: parseFloat($("#L_m").val()),
+          V: parseFloat($("#V_m").val()),
+          H: parseFloat($("#H_m").val()),
+          R: parseFloat($("#R_m").val()),
+          Wx: parseFloat($("#Wx_m").val()),
+          Wy: parseFloat($("#Wy_m").val()),
+          C: parseFloat($("#C_m").val()),
+        };
+
+        variables.theta = math.evaluate("atan((L - Wx) / (F - Wy))", variables);
+        variables.Vprime = math.evaluate("sqrt((F - Wy) ^ 2 + (L - Wx) ^ 2)", variables);
+        variables.deltaL = math.evaluate("V - Vprime", variables);
+        variables.deltaX = math.evaluate("deltaL * sin(theta)", variables);
+        variables.deltaY = math.evaluate("deltaL * cos(theta)", variables);
+        variables.Xo = math.evaluate("Wx - deltaX", variables);
+        variables.Yo = math.evaluate("Wy - deltaY", variables);
+        variables.Vcut = math.evaluate("sqrt(2 * g * (H - Yo))", variables);
+        variables.Vox = math.evaluate("Vcut * cos(theta)", variables);
+        variables.Voy = math.evaluate("Vcut * sin(theta)", variables);
+        variables.T = math.evaluate("Xo / Vox", variables);
+        variables.Yf = math.evaluate("Yo + Voy * T - 0.5 * g * T ^ 2", variables);
+
+        // Container height
+        variables.N = 0.1524;
+
+        variables.Treal = math.evaluate("(Voy + sqrt(Voy^2 - 2 * g * (N - Yo))) / g", variables);
+        variables.Xreal = math.evaluate("Vox * Treal", variables);
+        variables.R = math.evaluate("Xreal - Xo", variables);
+
+        let YfMax = (C + caveOpeningSize) / scaleFactor;
+        let YfInches = variables.Yf * INCH_MULTIPLIER;
+
+        $("#YfRange").html(`<strong>Target Vf:</strong> ${C / scaleFactor}in - ${YfMax}in`);
+        $("#YfActual").html("<strong>Actual Vf:</strong> " + math.round(YfInches, 2) + "in");
+
+        let YfColor = "red";
+        if (YfInches > YfMax || YfInches < C / scaleFactor) {
+          $("#YfActual").addClass("text-danger");
+          $("#YfActual").removeClass("text-success");
+        } else {
+          $("#YfActual").addClass("text-success");
+          $("#YfActual").removeClass("text-danger");
+          YfColor = "green";
+        }
+
+        // Draw Vf line
+        drawLine(-LABEL_OFFSET, YfInches * scaleFactor, LABEL_OFFSET, YfInches * scaleFactor, false, YfColor);
+
+        let RInches = evaluate(variables.R + " m to in");
+
+        R = RInches * scaleFactor;
+
+        try {
+          if ($("#updateR").is(":checked")) {
+            $("#R_m").val(evaluate(variables.R + ""));
+            $("#R").val(RInches);
+          }
+        } catch (ignored) {}
+
+        // Draw dots of trajectory
+        function xAtTime(t) {
+          return math.evaluate((variables.Vox * t - variables.Xo) + " m to in").toNumber() * scaleFactor * -1;
+        }
+        
+        function yAtTime(t) {
+          return math.evaluate(math.evaluate(`Yo + Voy * ${t} - 0.5 * g * ${t} ^ 2`, variables) + " m to in").toNumber() * scaleFactor;
+        }
+
+        let simulationTime = 0;
+        while (simulationTime < variables.Treal) {
+          drawCircle(xAtTime(simulationTime), yAtTime(simulationTime), 1);
+          simulationTime += 0.01;
+        }
+
+      }
+
       function calcValues() {
         let inputText = $("#input").val();
 
@@ -470,7 +581,7 @@ R: {R = Xreal - Xo} | {R m to in}
         // Replace expressions within braces with their evaluated values
         let outputText = inputText.replace(/\{(.*?)\}/g, function (match, expression) {
           try {
-            return math.evaluate(expression, variables);
+            return evaluate(expression, variables);
           } catch (error) {
             return "Error: " + error.message;
           }
@@ -486,13 +597,18 @@ R: {R = Xreal - Xo} | {R m to in}
         let decodedUrlObject = decodeURIComponent(atob(base64EncodedUrlObject));
         let urlObject = JSON.parse(decodedUrlObject);
         Object.keys(urlObject).forEach(function (id) {
+          if ($(`#${id}`).attr("type") == "checkbox") {
+            $(`#${id}`).prop("checked", urlObject[id]);
+            $("#roundDecimals").prop("disabled", !$("#roundResults").is(":checked"));
+            return;
+          }
           $(`#${id}`).val(urlObject[id]);
         });
       }
 
       function pullSavedData() {
         if (!extractDataFromUrl()) {
-          let savedData = localStorage.getItem("tarzan-swing-default");
+          let savedData = localStorage.getItem("tarzan-swing");
           if (savedData) {
             extractData(savedData);
           }
@@ -513,6 +629,14 @@ R: {R = Xreal - Xo} | {R m to in}
         let urlObject = {};
         $("input:not(.metric), textarea:not([readonly])").each(function (index, element) {
           let $elm = $(element);
+
+          if ($elm.attr("type") == "checkbox") {
+            if ($elm.is(":checked") != defaults[$elm.attr("id")]) {
+              urlObject[$elm.attr("id")] = $elm.is(":checked");
+            }
+            return;
+          }
+
           if ($elm.val() != defaults[$elm.attr("id")]) {
             urlObject[$elm.attr("id")] = $elm.val();
           }
@@ -557,10 +681,19 @@ R: {R = Xreal - Xo} | {R m to in}
       }
 
       function saveData() {
-        localStorage.setItem("tarzan-swing-default", encodeData());
+        localStorage.setItem("tarzan-swing", encodeData());
       }
 
       // Attach event listeners to input fields
+      $("#updateR").on("change", function () {
+        $("#R").prop("disabled", $("#updateR").is(":checked"));
+        $("#R_m").prop("disabled", $("#updateR").is(":checked"));
+      });
+      $("#roundResults").on("change", function () {
+        $("#roundDecimals").prop("disabled", !$("#roundResults").is(":checked"));
+      });
+      $("input[type=checkbox]").on("change", saveData);
+
       $("input:not(.metric)").on("input", function () {
         let value = $(this).val();
         if (value == "") {
@@ -572,7 +705,7 @@ R: {R = Xreal - Xo} | {R m to in}
         if ($(this).next().hasClass("metric")) {
           $(this)
             .next()
-            .val(value / 39.37);
+            .val(evaluate(`${value} in to m`));
         }
         updateParameters();
       });
@@ -587,7 +720,7 @@ R: {R = Xreal - Xo} | {R m to in}
         }
         $(this)
           .prev()
-          .val(value * 39.37);
+          .val(evaluate(`${value} m to in`));
         updateParameters();
       });
 
@@ -598,12 +731,21 @@ R: {R = Xreal - Xo} | {R m to in}
       let defaults = {};
       $("input:not(.metric), textarea:not([readonly])").each(function (index, element) {
         let $elm = $(element);
+        if ($elm.attr("type") == "checkbox") {
+          defaults[$elm.attr("id")] = $elm.is(":checked");
+          return;
+        }
         defaults[$elm.attr("id")] = $elm.val();
       });
 
       function reset() {
         $("input:not(.metric), textarea:not([readonly])").each(function (index, element) {
           let $elm = $(element);
+          if ($elm.attr("type") == "checkbox") {
+            $elm.prop("checked", defaults[$elm.attr("id")]);
+            $("#roundDecimals").prop("disabled", !$("#roundResults").is(":checked"));
+            return;
+          }
           $elm.val(defaults[$elm.attr("id")]);
         });
         $("input:not(.metric), textarea").trigger("input");
