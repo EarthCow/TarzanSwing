@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Projectile Motion Simulation</title>
+  <style>
+    canvas {
+      border: 1px solid black;
+      display: block;
+      margin: auto;
+    }
+  </style>
+</head>
+<body>
+  <label for="angle">Launch Angle (degrees):</label>
+  <input type="number" id="angle" min="0" max="90" step="1" value="45">
+  <br>
+  <label for="speed">Launch Speed (m/s):</label>
+  <input type="number" id="speed" min="1" step="1" value="50">
+  <br>
+  <button onclick="startSimulation()">Start Simulation</button>
+  <br>
+  <canvas id="canvas" width="600" height="400"></canvas>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const g = 9.81; // acceleration due to gravity (m/s^2)
+    let angle, speed, initialVelX, initialVelY, time = 0;
+    const trail = [];
+
+    function startSimulation() {
+      angle = parseInt(document.getElementById('angle').value);
+      speed = parseInt(document.getElementById('speed').value);
+
+      // Convert angle to radians
+      const angleRadians = (angle * Math.PI) / 180;
+
+      // Calculate initial velocities
+      initialVelX = speed * Math.cos(angleRadians);
+      initialVelY = speed * Math.sin(angleRadians);
+
+      // Clear canvas and start animation
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      time = 0;
+      lastTime = 0;
+      trail.length = 0; // clear trail array
+      requestAnimationFrame(animateProjectile);
+    }
+
+    let lastTime = 0;
+
+    function animateProjectile() {
+      // Clear canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Update time
+      time += 0.1;
+
+      // Calculate new position
+      const posX = initialVelX * time;
+      const posY = canvas.height - (initialVelY * time - 0.5 * g * time * time);
+
+      // Add current position to the trail
+      
+      if (time - lastTime > 0.5) {
+        trail.push({ x: posX, y: posY });
+        lastTime = time;
+      }
+
+      // Draw trail
+      ctx.beginPath();
+      for (let i = 0; i < trail.length; i++) {
+        const dot = trail[i];
+        ctx.moveTo(dot.x, dot.y);
+        ctx.arc(dot.x, dot.y, 2, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = 'gray';
+      ctx.fill();
+
+      // Draw projectile
+      ctx.beginPath();
+      ctx.arc(posX, posY, 5, 0, Math.PI * 2);
+      ctx.fillStyle = 'red';
+      ctx.fill();
+
+      // Check if projectile is still within canvas
+      if (posX < canvas.width && posY < canvas.height) {
+        requestAnimationFrame(animateProjectile);
+      }
+    }
+  </script>
+</body>
+</html>
