@@ -199,7 +199,13 @@ R: {R = Xreal - Xo} | {R m to in}
               </button>
             </div>
             <div class="form-group col">
-              <label for="resetBtn">Reset workspace:</label>
+              <label for="solutionBtn">Set known solution:</label>
+              <button class="btn btn-outline-danger form-control" id="solutionBtn" onclick="setKnownSolution()">
+                Set solution
+              </button>
+            </div>
+            <div class="form-group col">
+              <label for="resetBtn">Group 1 workspace:</label>
               <button class="btn btn-outline-danger form-control" id="resetBtn" onclick="reset()">Set defaults</button>
             </div>
           </div>
@@ -241,13 +247,7 @@ R: {R = Xreal - Xo} | {R m to in}
         ctx.strokeStyle = color ?? "#000";
         ctx.fillStyle = color ?? "#000";
         ctx.beginPath();
-        ctx.arc(
-          X_OFFSET + x,
-          canvas.height - Y_OFFSET - y,
-          radius,
-          0,
-          math.pi * 2
-        );
+        ctx.arc(X_OFFSET + x, canvas.height - Y_OFFSET - y, radius, 0, math.pi * 2);
         if (color) {
           ctx.fill();
         }
@@ -410,7 +410,7 @@ R: {R = Xreal - Xo} | {R m to in}
         rectangleWidth = parseFloat($("#rectangleWidth").val()) * scaleFactor;
         rectangleHeight = parseFloat($("#rectangleHeight").val()) * scaleFactor;
         L = parseFloat($("#L").val()) * scaleFactor;
-        V = parseFloat($("#V").val()) * scaleFactor;
+        V = parseFloat($("#V").val() - 0.25) * scaleFactor;
         H = parseFloat($("#H").val()) * scaleFactor;
         R = parseFloat($("#R").val()) * scaleFactor;
         Wx = parseFloat($("#Wx").val()) * scaleFactor;
@@ -483,7 +483,7 @@ R: {R = Xreal - Xo} | {R m to in}
           F: parseFloat($("#rectangleHeight_m").val()),
 
           L: parseFloat($("#L_m").val()),
-          V: parseFloat($("#V_m").val()),
+          V: parseFloat($("#V_m").val() - 0.00635),
           H: parseFloat($("#H_m").val()),
           R: parseFloat($("#R_m").val()),
           Wx: parseFloat($("#Wx_m").val()),
@@ -543,11 +543,14 @@ R: {R = Xreal - Xo} | {R m to in}
 
         // Draw dots of trajectory
         function xAtTime(t) {
-          return math.evaluate((variables.Vox * t - variables.Xo) + " m to in").toNumber() * scaleFactor * -1;
+          return math.evaluate(variables.Vox * t - variables.Xo + " m to in").toNumber() * scaleFactor * -1;
         }
-        
+
         function yAtTime(t) {
-          return math.evaluate(math.evaluate(`Yo + Voy * ${t} - 0.5 * g * ${t} ^ 2`, variables) + " m to in").toNumber() * scaleFactor;
+          return (
+            math.evaluate(math.evaluate(`Yo + Voy * ${t} - 0.5 * g * ${t} ^ 2`, variables) + " m to in").toNumber() *
+            scaleFactor
+          );
         }
 
         let simulationTime = 0;
@@ -555,7 +558,6 @@ R: {R = Xreal - Xo} | {R m to in}
           drawCircle(xAtTime(simulationTime), yAtTime(simulationTime), 1);
           simulationTime += 0.01;
         }
-
       }
 
       function calcValues() {
@@ -570,7 +572,7 @@ R: {R = Xreal - Xo} | {R m to in}
           F: parseFloat($("#rectangleHeight_m").val()),
 
           L: parseFloat($("#L_m").val()),
-          V: parseFloat($("#V_m").val()),
+          V: parseFloat($("#V_m").val() - 0.00635),
           H: parseFloat($("#H_m").val()),
           R: parseFloat($("#R_m").val()),
           Wx: parseFloat($("#Wx_m").val()),
@@ -749,6 +751,25 @@ R: {R = Xreal - Xo} | {R m to in}
           $elm.val(defaults[$elm.attr("id")]);
         });
         $("input:not(.metric), textarea").trigger("input");
+      }
+
+      const knownSolutionVariables = {
+        L: "32",
+        H: "47",
+        V: "57.5",
+        R: "45.7",
+        rectangleWidth: "85.75",
+        rectangleHeight: "66.75",
+        C: "16",
+        Wx: "15",
+        Wy: "20",
+      };
+
+      function setKnownSolution() {
+        Object.keys(knownSolutionVariables).forEach((key) => {
+          $("#" + key).val(knownSolutionVariables[key]);
+          $("#" + key).trigger("input");
+        });
       }
 
       // Pull any saved data
