@@ -11,6 +11,23 @@
         max-height: 100vh;
         border: 1px solid black;
       }
+
+      #input,
+      #output {
+        font-family: math;
+      }
+
+      #output {
+        border: 1px solid #ced4da;
+        padding: 0.375rem 0.75rem;
+        color: #495057;
+        background-color: #e9ecef;
+        border-radius: 0.25rem;
+        line-height: 1.5;
+        height: auto;
+        overflow: auto;
+        pointer-events: none;
+      }
     </style>
     <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css" />
   </head>
@@ -110,34 +127,46 @@
           <div class="form-group">
             <label for="input">Input:</label>
             <textarea rows="5" class="form-control" id="input" spellcheck="false">
-theta: {theta = atan((L - Wx) / (F - Wy))} rad | {theta rad to deg}
-Vprime: {Vprime = sqrt((F - Wy)^2 + (L - Wx)^2)} m | {Vprime m to in}
-deltaL: {deltaL = V - Vprime} | {deltaL m to in}
+*LAUNCH ANGLE*
+theta: {theta = atan((L - Wx) / (F - Wy))} rad | {theta rad to deg} degrees
 
-deltaX: {deltaX = deltaL * sin(theta)} | {deltaX m to in}
-deltaY: {deltaY = deltaL * cos(theta)} | {deltaY m to in}
+Vprime: {Vprime = sqrt((F - Wy)^2 + (L - Wx)^2)} m | {Vprime m to in} in
+deltaL: {deltaL = V - Vprime} m | {deltaL m to in} in
 
-Xo: {Xo = Wx - deltaX} | {Xo m to in}
-Yo: {Yo = Wy - deltaY} | {Yo m to in}
+deltaX: {deltaX = deltaL * sin(theta)} m | {deltaX m to in} in
+deltaY: {deltaY = deltaL * cos(theta)} m | {deltaY m to in} in
 
+*POSITION OF BALLOON WHEN CUT*
+Xo: {Xo = Wx - deltaX} m | {Xo m to in} in
+Yo: {Yo = Wy - deltaY} m | {Yo m to in} in
+
+*VELOCITY AT CUT POINT*
 Vcut: {Vcut = sqrt(2 * g * (H - Yo))} m/s
 
-Vox: {Vox = Vcut * cos(theta)}
-Voy: {Voy = Vcut * sin(theta)}
+Vox: {Vox = Vcut * cos(theta)} m/s
+Voy: {Voy = Vcut * sin(theta)} m/s
 
-T: {T = Xo / Vox}
+*TIME AT THE POINT OF EXIT*
+T: {T = Xo / Vox} seconds
 
-Yf: {Yf = Yo + Voy * T - .5 * g * T^2} | {Yf m to in}
+*Y POINT WHERE X HITS THE OPENING*
+Yf: {Yf = Yo + Voy * T - .5 * g * T^2} m | {Yf m to in} in
+Is exit ok?: {C &lt; Yf &lt; (C + 0.1524)}
 
 Container height:
-N: {N = 0.1524}
+N: {N = 0.1524} m
 
-Treal: {Treal = (Voy + sqrt(Voy^2 - 2 * g * (N - Yo))) / g}
+*TOTAL TIME CALCULATION*
+Treal: {Treal = (Voy + sqrt(Voy^2 - 2 * g * (N - Yo))) / g} seconds
 
 Xreal: {Xreal = Vox * Treal}
+R: {R = Xreal - Xo} m | {R m to in} in
 
-R: {R = Xreal - Xo} | {R m to in}
-</textarea
+*TENSION CALCULATIONS*
+Lowest point speed = {LPS = sqrt(2 * g * H)} m/s
+Fy: {Fy = (0.1(LPS^2))/V} N
+Tension: {Tension = Fy + (0.1)g} N
+Is tension ok?: {Tension &lt; 10}</textarea
             >
             <div class="row">
               <div class="col-8">
@@ -152,7 +181,7 @@ R: {R = Xreal - Xo} | {R m to in}
         <div class="col">
           <div class="form-group">
             <label for="output">Output:</label>
-            <textarea rows="5" class="form-control" id="output" readonly></textarea>
+            <div id="output"></div>
           </div>
         </div>
       </div>
@@ -443,7 +472,7 @@ R: {R = Xreal - Xo} | {R m to in}
         let totalRows = input.value.split("\n").length;
         if (totalRows >= 5) {
           input.setAttribute("rows", totalRows);
-          $("#output").attr("rows", totalRows);
+          $("#output").outerHeight($("#input").outerHeight());
         }
 
         let text = `Ln: ${rows}, Col: ${cols}`;
@@ -589,7 +618,15 @@ R: {R = Xreal - Xo} | {R m to in}
           }
         });
 
-        $("#output").val(outputText);
+        outputText = outputText.replace(/[\u00A0-\u9999<>\&]/g, (i) => "&#" + i.charCodeAt(0) + ";");
+        outputText = outputText.replaceAll("\n", (f) => "<br/>");
+
+        // Apply bolding where necessary
+        outputText = outputText.replace(/(?<!\\)\*(.*?)(?<!\\)\*/g, function (match, internalText) {
+          return "<strong>" + internalText + "</strong>";
+        });
+
+        $("#output").html(outputText);
 
         saveData();
       }
