@@ -1,5 +1,0 @@
-# Protect Directory
-AuthName "Protected Directory"
-AuthType Basic
-AuthUserFile /var/www/html/.htpasswd
-Require valid-user
