@@ -151,7 +151,7 @@ T: {T = Xo / Vox} seconds
 
 *Y POINT WHERE X HITS THE OPENING*
 Yf: {Yf = Yo + Voy * T - .5 * g * T^2} m | {Yf m to in} in
-Is exit ok?: {C &lt; Yf &lt; (C + 0.1524)}
+Is exit ok?: {(C - 0.1524/2) &lt; Yf &lt; (C + 0.1524/2)}
 
 Container height:
 N: {N = 0.1524} m
@@ -389,9 +389,11 @@ Is tension ok?: {Tension &lt; 10}</textarea
 
         // Left side of rectangle
         // Part extending up to the opening
-        drawLine(0, 0, 0, C);
+        drawLine(0, 0, 0, C - caveOpeningSize / 2);
+        // Draw dotted line to the center of opening
+        drawLine(0, C - caveOpeningSize / 2, 0, C, false, "lightgray");
         // Part extending up to the top of the cave
-        drawLine(0, C + caveOpeningSize, 0, rectangleHeight);
+        drawLine(0, C + caveOpeningSize / 2, 0, rectangleHeight);
 
         // Top side of rectangle
         drawLine(0, rectangleHeight, rectangleWidth, rectangleHeight);
@@ -540,14 +542,16 @@ Is tension ok?: {Tension &lt; 10}</textarea
         variables.Xreal = math.evaluate("Vox * Treal", variables);
         variables.R = math.evaluate("Xreal - Xo", variables);
 
-        let YfMax = (C + caveOpeningSize) / scaleFactor;
+        let YfTargetMin = (C - caveOpeningSize / 2) / scaleFactor;
+        let YfTargetMax = (C + caveOpeningSize / 2) / scaleFactor;
         let YfInches = variables.Yf * INCH_MULTIPLIER;
 
-        $("#YfRange").html(`<strong>Target Vf:</strong> ${C / scaleFactor}in - ${YfMax}in`);
+
+        $("#YfRange").html(`<strong>Target Vf:</strong> ${YfTargetMin}in - ${YfTargetMax}in`);
         $("#YfActual").html("<strong>Actual Vf:</strong> " + math.round(YfInches, 2) + "in");
 
         let YfColor = "red";
-        if (YfInches > YfMax || YfInches < C / scaleFactor) {
+        if (YfInches > YfTargetMax || YfInches < YfTargetMin) {
           $("#YfActual").addClass("text-danger");
           $("#YfActual").removeClass("text-success");
         } else {
